@@ -40,11 +40,11 @@ class JSONFormatter implements FormatterInterface
 
     public function setBody($data)
     {
-        return json_encode($data);
+        return $data;
     }
 
     public function formatResponse($response)
     {
-        return json_decode($response->getBody(), true);
+        return $response->getBody();
     }
 }
