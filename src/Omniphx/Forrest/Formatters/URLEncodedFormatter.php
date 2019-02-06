@@ -3,24 +3,48 @@
 namespace Omniphx\Forrest\Formatters;
 
 use Omniphx\Forrest\Interfaces\FormatterInterface;
+use Omniphx\Forrest\Interfaces\RepositoryInterface;
 
 class URLEncodedFormatter implements FormatterInterface
 {
-    public function setHeaders()
-    {
-        $headers['Accept'] = 'application/x-www-form-urlencoded';
-        $headers['Content-Type'] = 'application/x-www-form-urlencoded';
+	protected $tokenRepository;
+	protected $settings;
+	protected $headers;
 
-        return $headers;
-    }
+	public function __construct(RepositoryInterface $tokenRepository, $settings) {
+		$this->tokenRepository = $tokenRepository;
+		$this->settings        = $settings;
+	}
 
-    public function setBody($data)
-    {
-        return $data;
-    }
+	public function setHeaders()
+	{
+		$accessToken = $this->tokenRepository->get()['access_token'];
+		$tokenType   = $this->tokenRepository->get()['token_type'];
 
-    public function formatResponse($response)
-    {
-        return $response->getBody();
-    }
+		$this->headers['Accept'] = 'application/x-www-form-urlencoded';
+		$this->headers['Content-Type'] = 'application/x-www-form-urlencoded';
+		$this->headers['Authorization'] = "$tokenType $accessToken";
+
+		$this->setCompression();
+
+		return $this->headers;
+	}
+
+	private function setCompression()
+	{
+		if (!$this->settings['defaults']['compression']) return;
+
+		$this->headers['Accept-Encoding']  = $this->settings['defaults']['compressionType'];
+		$this->headers['Content-Encoding'] = $this->settings['defaults']['compressionType'];
+	}
+
+	public function setBody($data)
+	{
+		return $data;
+	}
+
+	public function formatResponse($response)
+	{
+		return $response->getBody();
+	}
 }

@@ -10,6 +10,8 @@ use Omniphx\Forrest\Exceptions\SalesforceException;
 use Omniphx\Forrest\Exceptions\TokenExpiredException;
 use Omniphx\Forrest\Exceptions\MissingVersionException;
 
+use Omniphx\Forrest\Formatters\URLEncodedFormatter;
+use Omniphx\Forrest\Formatters\XMLFormatter;
 use Omniphx\Forrest\Interfaces\EncryptorInterface;
 use Omniphx\Forrest\Interfaces\EventInterface;
 use Omniphx\Forrest\Interfaces\InputInterface;
@@ -185,26 +187,36 @@ abstract class Client
         }
     }
 
-    private function handleRequest()
-    {
-        $this->parameters['headers'] = $this->formatter->setHeaders();
+	private function handleRequest()
+	{
+		$formatter = $this->formatter;
+		switch ($this->options['format']) {
+			case 'none':
+				$formatter = new URLEncodedFormatter($this->tokenRepo, $this->settings);
+				break;
+			case 'xml':
+				$formatter = new XMLFormatter($this->tokenRepo, $this->settings);
+				break;
+		}
 
-        if (isset($this->options['body'])) {
-            $this->parameters['body'] = $this->formatter->setBody($this->options['body']);
-        }
+		$this->parameters['headers'] = $formatter->setHeaders();
 
-        try {
-            $response = $this->httpClient->request($this->options['method'], $this->url, $this->parameters);
-        } catch (RequestException $ex) {
-            $this->assignExceptions($ex);
-        }
+		if (isset($this->options['body'])) {
+			$this->parameters['body'] = $formatter->setBody($this->options['body']);
+		}
 
-        $formattedResponse = $this->formatter->formatResponse($response);
+		try {
+			$response = $this->httpClient->request($this->options['method'], $this->url, $this->parameters);
+		} catch (RequestException $ex) {
+			$this->assignExceptions($ex);
+		}
 
-        $this->event->fire('forrest.response', [$formattedResponse]);
+		$formattedResponse = $formatter->formatResponse($response);
 
-        return $formattedResponse;
-    }
+		$this->event->fire('forrest.response', [$formattedResponse]);
+
+		return $formattedResponse;
+	}
 
     /**
      * GET method call using any custom path.
